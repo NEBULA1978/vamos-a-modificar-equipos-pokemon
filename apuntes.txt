@@ -57,3 +57,248 @@ module.exports = passport => {
     // Creamos la estrategia hacia arriba
 
 }
+
+/////////////////////////////////////////////////
+//////////////////////////////////////////////////
+
+Video:  json web token y bcrtpt
+
+creamoas la carpeta controllers para tener la logica del ussuario aparte:
+  dentro creamos archivo users.js
+
+/////////////////////////////
+COdigo archivo users.js:
+
+const uuid = require('uuid/v4');
+
+// Definimos base e datos usuarios,wardamos en un diccionario
+const userDatabase = {
+  // Identificador
+  '0001': {
+    'password': '',
+    'salt': '',
+    'userName': ''
+  }
+};
+//userid:passport
+
+// Una funcion quenos permita añadir ususarios nuevos en bd
+const registerUser = (userName, password) => {
+  // Wardar en la base dedatos nuestro ususario
+  userDatabase[uuid.v4()] = {
+    userName: userName,
+
+  }
+}
+
+TENEMOS UN PROBLEMA ES UNA FUNCION SINCRONA PERO ESTA FUNCION ESPERA UN RESULTADO SINCRONO
+// Recibe  un userid y un password y quenos devuelva verdadero o falso
+const checkUserCredentials = (userid, password) => {
+  // Comprobas que las credenciales son correctas
+  let user = userDatabase[userid];
+  crypto.comparePasswoed(password, user.password, (err, result) => {
+    return result;
+  })
+  return false;
+}
+
+SOLUCION:
+
+// Recibe  un userid y un password y quenos devuelva verdadero o falso
+const checkUserCredentials = (userid, password, done) => {
+  // Comprobas que las credenciales son correctas
+  let user = userDatabase[userid];
+  crypto.comparePasswoed(password, user.password, done);
+}
+
+COdigo archivo users.js final bueno:
+
+const uuid = require('uuid/v4');
+const crypto = require('./crypto');
+
+// Definimos base e datos usuarios,wardamos en un diccionario
+const userDatabase = {
+  // Identificador
+  '0001': {
+    'password': '',
+    'salt': '',
+    'userName': ''
+  }
+};
+//userid:passport
+
+// Una funcion quenos permita añadir ususarios nuevos en bd
+const registerUser = (userName, password) => {
+  // Wardar en la base dedatos nuestro ususario
+  // Cada vez que registramos a un ususario nuevo esto senos cifra
+  crypto.hashPassword(password, (err, result) => {
+    // Guardamos en la base de datos
+    userDatabase[uuid.v4()] = {
+      userName: userName,
+      password: result
+    }
+  })
+
+}
+
+
+// Recibe  un userid y un password y quenos devuelva verdadero o falso
+const checkUserCredentials = (userid, password, done) => {
+  // Comprobas que las credenciales son correctas
+  let user = userDatabase[userid];
+  crypto.comparePasswoed(password, user.password, done);
+}
+
+Instalamos npm install -s uuid
+
+
+////////////////////////////////////////////
+
+Creamos archivo cryto.js con el codigo:
+
+const bcrypt = require('bcrypt');
+
+const hashPassword = (plainTextPwd, done) => {
+  bcrypt.hash(plainTextPwd, saltRounds, 10, done);
+}
+
+
+const comparePassword = (plainPassword, hashPassword, done) => {
+  bcrypt.compare(plainPassword, hashPassword, done);
+};
+
+//////////////////////////////////////////////////////////////
+
+Archivo app.js con todos los cambios finles de video json web token bcrypt:
+
+const express = require('express');
+const passport = require('passport');
+// var LocalStrategy = require('passport-local');
+require('./auth')(passport);
+const jwt = require('jsonwebtoken');
+const userController = require('./controllers/users');
+
+const app = express();
+const port = 3000;
+
+app.get('/', (req, res) => {
+  //req: es la request, la peticion
+  // res: es la respuesata
+  // console.log(req);
+  res.status(200).send('Hello World!')
+});
+
+app.post('/login', (req, res) => {
+  // Comprobamos credenciales
+  userController.checkUserCredentials(req.body.userid, req.body.password, (err, result) => {
+    // Si no son validas error
+    if (!result) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    // Si son ValidityState, generamos un jwt y lo devolvemos
+    const token = jwt.sign({ userid: req.body.user });
+    res.status(200).json(
+      { token: token }
+    )
+  });
+
+});
+
+
+app.post('/team/pokemons', () => {
+  res.status(200).send('Hello World!')
+});
+
+app.get('/team', passport.authenticate('jwt', { session: false }), (req, res, next) => {
+  res.status(200).send('Hello World!')
+})
+
+app.delete('/team/pokemons/:pokeid', (req, res) => {
+  res.status(200).send('Hello World!')
+});
+
+app.put('/team', (req, res) => {
+  res.status(200).send('Hello World!')
+});
+
+
+
+app.listen(port, () => {
+  console.log('Server at port 3000');
+})
+
+exports.app = app;
+
+
+///////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+VIDEO REPASO DE CAMBIOS EN LA AUTENTIFICACION:
+
+CODIGO ARCHIVO del video anterior auth-test.test.js:
+
+  const chai = require("chai");
+const chaiHttp = require("chai-http");
+
+chai.use(chaiHttp);
+
+const app = require("../app").app;
+
+describe("Suite de pruebas auth", () => {
+  // Cuando la llamada no tiene correctamente la llave
+  it("should return 401 when no jwt token available", (done) => {
+    // Cuando la llamada no tiene correctamente la llave
+    // Llamamos a la funcion para llamar a este endpoint
+    chai.request(app)
+      .get("/team")
+      .end((err, res) => {
+        chai.assert.equal(res.statusCode, 401);
+        done();
+      });
+
+    // Obtenemos el resultado esperado
+  });
+  // Cuando la llamada no tiene correctamente la llave
+  it("should return 200 when jwt is valid", (done) => {
+    // Cuando la llamada  tiene correctamente la llave
+    // Llamamos a la funcion para llamar a este endpoint
+    chai.request(app)
+      // REspuesta del login que esperamos
+      .post("/login")
+      .end((err, res) => {
+        // CUando recibimos respuesta realizamos el get
+        chai.request(app)
+          .get("/team")
+          .set("Authorization", `JWT ${res.body.token}`)
+          .end((err, res) => {
+            chai.assert.equal(res.statusCode, 200);
+            done();
+          });
+      });
+
+    // Obtenemos el resultado esperado
+    // Cuando la llamada  tiene correctamente la llave
+    // Llamamos a la funcion para llamar a este endpoint
+
+    // Obtenemos el resultado esperado
+  });
+});
+
+// Prohibido elususario no tiene autorizacion
+// Si tenemos una autorizacion pero el ususario no tiene permisos para realizar esa accion debe devolver 403
+// it('should return 403', (done) => {
+// Llamamos a la funcion
+
+// Obtenemos el resultado esperado
+
+// });
+
+
+////////////////////////////////////////////////
+CODIGO ARCHIVO este video auth-test.test.js:
+
+
+
+
+/////////////////////////////////////////////////
+

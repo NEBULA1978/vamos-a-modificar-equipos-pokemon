@@ -1,9 +1,20 @@
 const express = require('express');
-const passport = require('passport');
-// var LocalStrategy = require('passport-local');
-require('./auth')(passport);
+const bodyParser = require('body-parser');
+
+// const jwt = require('jsonwebtoken');
+
+// Routes
+const authRoutes = require('./routers/auth').router;
+const teamsRoutes = require('./routers/teams').router;
+
+// require(',/auth')(passport);
+
+
 
 const app = express();
+// Añadimos un middledvwers
+app.use(bodyParser.json());
+
 const port = 3000;
 
 app.get('/', (req, res) => {
@@ -12,28 +23,25 @@ app.get('/', (req, res) => {
   // console.log(req);
   res.status(200).send('Hello World!')
 });
+// Nos permite facilmente crear modulosde nuestra aplicacion
+app.use('/auth', authRoutes);
+app.use('/teams', teamsRoutes);
 
-app.post('/login', (req, res) => {
-  res.status(200).json(
-    { token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.zX5MPQtbjoNAS7rpsx_hI7gqGIlXOQq758dIqyBVxxY' }
-  )
-});
+// app.post('/team/pokemons', () => {
+//   res.status(200).send('Hello World!')
+// });
 
-app.post('/team/pokemons', () => {
-  res.status(200).send('Hello World!')
-});
+// app.get('/team', passport.authenticate('jwt', { session: false }), (req, res, next) => {
+//   res.status(200).send('Hello World!')
+// })
 
-app.get('/team', passport.authenticate('jwt', { session: false }), (req, res, next) => {
-  res.status(200).send('Hello World!')
-})
+// app.delete('/team/pokemons/:pokeid', (req, res) => {
+//   res.status(200).send('Hello World!')
+// });
 
-app.delete('/team/pokemons/:pokeid', (req, res) => {
-  res.status(200).send('Hello World!')
-});
-
-app.put('/team', (req, res) => {
-  res.status(200).send('Hello World!')
-});
+// app.put('/team', (req, res) => {
+//   res.status(200).send('Hello World!')
+// });
 
 
 
